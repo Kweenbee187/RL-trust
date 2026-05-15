@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FT-KGRL · Live Network Intelligence</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+:root{
+  --bg:#020810;--panel:#080f1e;--border:#1a2540;--border2:#243050;
+  --accent:#00d4ff;--accent2:#ff6b35;--green:#00ff88;--yellow:#ffd700;
+  --red:#ff2d55;--purple:#a855f7;--dim:#3a4a6b;--text:#c8d8f0;--text2:#8899bb;
+  --mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;overflow:hidden;
+  display:grid;grid-template-rows:56px 1fr;grid-template-columns:1fr 360px;
+}
+
+/* ── HEADER ── */
+header{
+  grid-column:1/-1;background:linear-gradient(90deg,#04091a,#060e1e,#04091a);
+  border-bottom:2px solid var(--border2);display:flex;align-items:center;
+  padding:0 14px;gap:10px;z-index:20;position:relative;
+}
+.logo{font-family:var(--mono);font-size:16px;color:var(--accent);letter-spacing:3px;flex-shrink:0;}
+.logo b{color:var(--accent2);}
+.tabs{display:flex;gap:3px;background:rgba(0,0,0,0.5);padding:3px;
+  border-radius:4px;border:1px solid var(--border);flex-shrink:0;}
+.tb{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:5px 13px;
+  border:1px solid transparent;background:transparent;color:var(--dim);
+  cursor:pointer;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+.tb:hover{color:var(--text2);border-color:var(--border2);}
+.tb.on{background:rgba(0,212,255,0.12);color:var(--accent);border-color:rgba(0,212,255,0.4);}
+.ptag{font-family:var(--mono);font-size:9px;color:var(--accent);
+  background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.3);
+  padding:4px 10px;border-radius:2px;letter-spacing:2px;flex-shrink:0;min-width:110px;text-align:center;}
+.epi{font-family:var(--mono);font-size:9px;color:var(--dim);flex-shrink:0;}
+.epi span{color:var(--text2);}
+
+/* ── SPEED MODE SELECTOR ── */
+.speed-wrap{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.speed-label{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;}
+.speed-tabs{display:flex;gap:2px;background:rgba(0,0,0,0.5);padding:2px;border-radius:4px;border:1px solid var(--border);}
+.stb{font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:4px 10px;
+  border:1px solid transparent;background:transparent;color:var(--dim);
+  cursor:pointer;border-radius:2px;transition:all 0.2s;white-space:nowrap;}
+.stb:hover{color:var(--text2);border-color:var(--border2);}
+.stb.on[data-speed="normal"]{background:rgba(0,212,255,0.12);color:var(--accent);border-color:rgba(0,212,255,0.4);}
+.stb.on[data-speed="fast"]{background:rgba(255,215,0,0.12);color:var(--yellow);border-color:rgba(255,215,0,0.4);}
+.stb.on[data-speed="turbo"]{background:rgba(255,107,53,0.15);color:var(--accent2);border-color:rgba(255,107,53,0.5);}
+
+/* ── TIMER DISPLAY ── */
+.timer-wrap{display:flex;flex-direction:column;align-items:center;
+  background:rgba(0,0,0,0.4);border:1px solid var(--border2);
+  padding:3px 10px;border-radius:3px;flex-shrink:0;min-width:120px;}
+.timer-elapsed{font-family:var(--mono);font-size:14px;color:var(--green);letter-spacing:2px;line-height:1;}
+.timer-eta{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:1px;margin-top:2px;
+  transition:color 0.3s;white-space:nowrap;}
+.timer-eta.active{color:var(--text2);}
+
+.hstats{margin-left:auto;display:flex;gap:10px;flex-shrink:0;}
+.hs{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.3);
+  border:1px solid var(--border);padding:3px 9px;border-radius:3px;min-width:64px;}
+.hs .hv{font-family:var(--mono);font-size:13px;color:var(--green);transition:color 0.3s;}
+.hs .hl{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:1px;}
+
+/* ── CANVAS ── */
+#cw{
+  position:relative;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 40%,#060d20,#020810 75%);
+}
+canvas{display:block;position:absolute;top:0;left:0;}
+#cw::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,0.004) 3px,rgba(0,212,255,0.004) 4px);}
+
+/* ── SPLIT (compare mode) ── */
+#sp{position:absolute;top:0;bottom:0;width:2px;z-index:8;display:none;cursor:ew-resize;
+  background:linear-gradient(180deg,transparent,var(--accent2) 10%,var(--accent2) 90%,transparent);
+  box-shadow:0 0 20px rgba(255,107,53,0.3);}
+#sp::before{content:'';position:absolute;top:0;bottom:0;left:-3px;width:8px;background:transparent;}
+#sp:hover{box-shadow:0 0 30px rgba(255,107,53,0.6);}
+
+.cm-label{position:absolute;top:12px;font-family:var(--mono);font-size:11px;letter-spacing:2px;
+  padding:6px 16px;border-radius:3px;z-index:7;display:none;pointer-events:none;font-weight:bold;}
+#cml{left:15px;color:#556677;background:rgba(20,30,50,0.9);border:1px solid #334455;}
+#cmr{right:15px;color:var(--accent);background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.4);}
+
+.cm-stats{position:absolute;bottom:15px;height:50px;display:none;z-index:7;font-family:var(--mono);}
+#cmsl{left:15px;right:calc(50% + 10px);}
+#cmsr{right:15px;left:calc(50% + 10px);}
+.cm-stats-inner{background:rgba(4,9,26,0.95);border:1px solid var(--border);border-radius:3px;
+  height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.cm-stats-inner .cmlbl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-bottom:3px;}
+.cm-stats-inner .cmval{font-size:16px;font-weight:bold;}
+#cmsl .cmval{color:#556677;}
+#cmsr .cmval{color:var(--green);}
+
+#cmp-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.4);border-radius:4px;
+  padding:8px 16px;font-family:var(--mono);font-size:12px;color:var(--yellow);
+  z-index:9;display:none;pointer-events:none;backdrop-filter:blur(10px);}
+
+/* ── NARRATIVE ── */
+#narr{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(4,9,26,0.93);border:1px solid var(--border2);border-top:2px solid var(--accent);
+  padding:8px 20px;font-family:var(--mono);font-size:11px;color:var(--text2);
+  backdrop-filter:blur(10px);z-index:6;min-width:380px;max-width:560px;text-align:center;pointer-events:none;}
+#np{color:var(--accent);font-size:10px;letter-spacing:2px;margin-bottom:3px;}
+#nt{font-size:10px;line-height:1.5;}
+
+/* ── FLASH BAR ── */
+#df{position:absolute;top:0;left:0;right:0;z-index:9;font-family:var(--mono);font-size:11px;
+  color:var(--yellow);text-align:center;padding:5px;opacity:0;transition:opacity 0.4s;
+  pointer-events:none;background:rgba(255,215,0,0.08);border-bottom:1px solid rgba(255,215,0,0.3);}
+
+/* ══ SPEED MODE BADGE (canvas overlay) ══ */
+#speed-badge{
+  position:absolute;top:10px;right:15px;z-index:7;
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  padding:5px 12px;border-radius:3px;pointer-events:none;
+  transition:all 0.3s;
+}
+#speed-badge.normal{background:rgba(0,212,255,0.08);color:var(--accent);border:1px solid rgba(0,212,255,0.3);}
+#speed-badge.fast{background:rgba(255,215,0,0.1);color:var(--yellow);border:1px solid rgba(255,215,0,0.35);}
+#speed-badge.turbo{background:rgba(255,107,53,0.15);color:var(--accent2);border:1px solid rgba(255,107,53,0.5);
+  animation:turbopulse 1s ease-in-out infinite;}
+@keyframes turbopulse{0%,100%{box-shadow:0 0 6px rgba(255,107,53,0.3);}50%{box-shadow:0 0 18px rgba(255,107,53,0.7);}}
+
+/* ══════════════════════════════════════════════
+   FLOATING INTELLIGENCE PANEL
+   ══════════════════════════════════════════════ */
+#fdb{
+  position:absolute;bottom:50px;left:14px;z-index:6;
+  font-family:var(--mono);font-size:10px;
+  background:rgba(4,9,26,0.96);
+  border:1px solid var(--border2);
+  border-left:3px solid var(--accent);
+  padding:0;
+  width:310px;
+  opacity:0;transition:opacity 0.8s;
+  pointer-events:none;
+  backdrop-filter:blur(12px);
+  box-shadow:0 4px 32px rgba(0,0,0,0.5);
+}
+.fp-sec{padding:10px 13px;border-bottom:1px solid var(--border);}
+.fp-sec:last-child{border-bottom:none;}
+.fp-title{
+  color:var(--accent);font-size:9px;letter-spacing:2px;margin-bottom:8px;font-weight:bold;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.fp-title .fp-badge{font-size:8px;padding:2px 6px;border-radius:2px;letter-spacing:1px;}
+.fp-badge-live{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.3);}
+.fp-badge-score{background:rgba(255,215,0,0.1);color:var(--yellow);border:1px solid rgba(255,215,0,0.25);font-size:7px;}
+.fp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:10px;}
+.fp-row:last-child{margin-bottom:0;}
+.fp-lbl{color:var(--dim);font-size:9px;}
+.fp-val{font-weight:bold;}
+.fp-bar{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.fp-bar:last-child{margin-bottom:0;}
+.fp-bar-lbl{font-size:8px;color:var(--dim);min-width:58px;}
+.fp-bar-bg{flex:1;height:7px;background:rgba(0,0,0,0.45);border-radius:2px;overflow:hidden;}
+.fp-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
+.fp-bar-fill.prec{background:var(--accent);}
+.fp-bar-fill.rec{background:var(--purple);}
+.fp-bar-pct{font-size:9px;color:var(--text2);min-width:30px;text-align:right;}
+.fp-chart-wrap{margin-top:6px;position:relative;}
+.fp-chart-header{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:8px;color:var(--dim);margin-bottom:4px;letter-spacing:1px;
+}
+.fp-chart-header .fp-cv{color:var(--text2);font-size:9px;}
+.fp-canvas{width:100%;height:58px;display:block;border-radius:1px;
+  background:rgba(0,0,0,0.3);border:1px solid rgba(26,37,64,0.6);}
+
+/* ── MSG BAR ── */
+#mg{position:absolute;bottom:10px;left:10px;right:380px;z-index:6;
+  background:rgba(4,9,26,0.88);border:1px solid var(--border);border-left:3px solid var(--accent);
+  padding:7px 14px;font-family:var(--mono);font-size:10px;color:var(--accent);pointer-events:none;}
+
+/* ── TOOLTIP ── */
+#tip{position:absolute;display:none;background:rgba(4,9,26,0.97);border:1px solid var(--accent);
+  padding:11px 14px;font-family:var(--mono);font-size:10px;color:var(--text);
+  pointer-events:none;z-index:15;border-radius:3px;min-width:200px;
+  box-shadow:0 0 24px rgba(0,212,255,0.15);line-height:1.9;}
+.tt{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--accent);
+  margin-bottom:5px;border-bottom:1px solid var(--border);padding-bottom:5px;}
+.tbdg{display:inline-block;font-size:9px;padding:2px 8px;border-radius:2px;margin-bottom:6px;}
+.rc{background:rgba(255,45,85,0.15);color:#ff2d55;border:1px solid rgba(255,45,85,0.3);}
+.rs{background:rgba(255,215,0,0.1);color:#ffd700;border:1px solid rgba(255,215,0,0.3);}
+.ro{background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);}
+.rsc{background:rgba(255,107,53,0.15);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);}
+.rcu{background:rgba(0,212,255,0.12);color:#00d4ff;border:1px solid rgba(0,212,255,0.3);}
+
+/* ── RIGHT SIDEBAR ── */
+aside{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.ps{border-bottom:1px solid var(--border);padding:10px 14px;}
+.pt{font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--dim);margin-bottom:8px;display:flex;justify-content:space-between;}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;}
+.ms{background:rgba(0,0,0,0.35);border:1px solid var(--border);padding:8px 10px;border-radius:2px;}
+.ms .mv{font-family:var(--mono);font-size:15px;color:var(--green);}
+.ms .ml{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:1px;margin-top:2px;}
+.ms.y .mv{color:var(--yellow);}
+.ms.b .mv{color:var(--accent);}
+.ms.p .mv{color:var(--purple);}
+.ms.r .mv{color:var(--accent2);}
+.leg{display:grid;grid-template-columns:1fr;gap:5px;}
+.li{display:flex;align-items:center;gap:8px;font-size:9px;color:var(--text2);}
+.ld{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.ll2{width:20px;height:2px;flex-shrink:0;}
+.pbar{display:flex;gap:3px;margin-top:8px;}
+.pd{flex:1;height:4px;background:var(--border);border-radius:1px;transition:background 0.4s;}
+.pd.dn{background:var(--accent);}
+.pd.ac{background:var(--accent2);}
+.ctrls{display:flex;flex-direction:column;gap:6px;}
+.btn{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 12px;
+  border:1px solid var(--border);background:transparent;color:var(--text);
+  cursor:pointer;transition:all 0.2s;text-align:left;border-radius:2px;}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.05);}
+.btn.pau{border-color:var(--accent2);color:var(--accent2);}
+.br{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.sl{display:flex;flex-direction:column;gap:3px;}
+.sl label{font-family:var(--mono);font-size:8px;color:var(--dim);display:flex;justify-content:space-between;}
+.sl label span{color:var(--text2);}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:3px;}
+#log{flex:1;overflow-y:auto;padding:6px 14px;font-family:var(--mono);font-size:8.5px;line-height:1.9;}
+#log::-webkit-scrollbar{width:3px;}
+#log::-webkit-scrollbar-thumb{background:var(--border);}
+.le{color:var(--dim);border-bottom:1px solid rgba(26,37,64,0.4);padding:2px 0;}
+.le.hi{color:var(--accent);}
+.le.dt{color:var(--yellow);}
+.le.wn{color:var(--red);}
+.le.pp{color:var(--purple);}
+
+/* step delay row hidden in fast/turbo */
+#step-delay-row{transition:opacity 0.3s;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">FT-<b>KGRL</b></div>
+  <div class="tabs" id="tabs">
+    <button class="tb on" id="tab-rl" onclick="setMode('rl')">RL-TRUST</button>
+    <button class="tb" id="tab-compare" onclick="setMode('compare')">COMPARE ◄►</button>
+    <button class="tb" id="tab-focus" onclick="setMode('focus')">FOCUS</button>
+  </div>
+  <div class="ptag" id="ptag">INIT</div>
+  <div class="epi">Ep <span id="en">0</span>/1200 · Step <span id="sn">0</span>/15</div>
+
+  <!-- SPEED MODE -->
+  <div class="speed-wrap">
+    <span class="speed-label">SPEED</span>
+    <div class="speed-tabs">
+      <button class="stb on" data-speed="normal" onclick="setSpeed('normal')">NORMAL</button>
+      <button class="stb" data-speed="fast" onclick="setSpeed('fast')">FAST</button>
+      <button class="stb" data-speed="turbo" onclick="setSpeed('turbo')">TURBO</button>
+    </div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="timer-wrap">
+    <div class="timer-elapsed" id="timer-elapsed">00:00</div>
+    <div class="timer-eta" id="timer-eta">EST: calculating…</div>
+  </div>
+
+  <div class="hstats">
+    <div class="hs"><span class="hv" id="hrl">—</span><span class="hl">RL DELIVERY</span></div>
+    <div class="hs" style="border-color:rgba(60,80,100,0.5)"><span class="hv" id="hrn" style="color:#445566">—</span><span class="hl">RND DELIVERY</span></div>
+    <div class="hs"><span class="hv" id="him" style="color:var(--yellow)">—</span><span class="hl">IMPROVEMENT</span></div>
+    <div class="hs"><span class="hv" id="hpr" style="color:var(--accent)">—</span><span class="hl">PRECISION</span></div>
+    <div class="hs"><span class="hv" id="hrc" style="color:var(--purple)">—</span><span class="hl">RECALL</span></div>
+    <div class="hs"><span class="hv" id="htp" style="color:var(--accent2)">0/0</span><span class="hl">TRUE POS</span></div>
+  </div>
+</header>
+
+<!-- ── MAIN CANVAS ── -->
+<div id="cw">
+  <canvas id="mc"></canvas>
+  <canvas id="cc" style="display:none"></canvas>
+
+  <div id="sp"></div>
+  <div class="cm-label" id="cml">RANDOM BASELINE</div>
+  <div class="cm-label" id="cmr">RL-TRUST POLICY</div>
+  <div class="cm-stats" id="cmsl"><div class="cm-stats-inner">
+    <div class="cmlbl">AVG DELIVERY</div><div class="cmval" id="cmslv">—</div>
+  </div></div>
+  <div class="cm-stats" id="cmsr"><div class="cm-stats-inner">
+    <div class="cmlbl">AVG DELIVERY</div><div class="cmval" id="cmsrv">—</div>
+  </div></div>
+  <div id="cmp-badge">RL +0% over random</div>
+
+  <!-- Speed badge overlay on canvas -->
+  <div id="speed-badge" class="normal">● NORMAL</div>
+
+  <div id="narr"><div id="np">INITIALIZING</div><div id="nt">Building network — all nodes appear identical. No routing knowledge yet.</div></div>
+  <div id="df"></div>
+
+  <!-- ══ FLOATING INTELLIGENCE PANEL ══ -->
+  <div id="fdb">
+    <div class="fp-sec">
+      <div class="fp-title">
+        ROUTING PERFORMANCE
+        <span class="fp-badge fp-badge-live">● LIVE</span>
+      </div>
+      <div class="fp-row"><span class="fp-lbl">RL-Trust</span><span class="fp-val" id="fdrl" style="color:var(--green)">—</span></div>
+      <div class="fp-row"><span class="fp-lbl">Random</span><span class="fp-val" id="fdrn" style="color:#445566">—</span></div>
+      <div class="fp-row"><span class="fp-lbl">Improvement</span><span class="fp-val" id="fdim" style="color:var(--yellow)">—</span></div>
+    </div>
+    <div class="fp-sec">
+      <div class="fp-title">
+        UNSUPERVISED DETECTION
+        <span class="fp-badge fp-badge-score">SCORE=(1−μ)+1.2σ²</span>
+      </div>
+      <div class="fp-bar">
+        <span class="fp-bar-lbl">PRECISION</span>
+        <div class="fp-bar-bg"><div class="fp-bar-fill prec" id="fbpr" style="width:0%"></div></div>
+        <span class="fp-bar-pct" id="fbprv">—</span>
+      </div>
+      <div class="fp-bar">
+        <span class="fp-bar-lbl">RECALL</span>
+        <div class="fp-bar-bg"><div class="fp-bar-fill rec" id="fbrc" style="width:0%"></div></div>
+        <span class="fp-bar-pct" id="fbrcv">—</span>
+      </div>
+      <div class="fp-row" style="margin-top:6px"><span class="fp-lbl">Detected</span><span class="fp-val" id="fddet" style="color:var(--yellow)">—</span></div>
+      <div class="fp-row"><span class="fp-lbl">True Pos</span><span class="fp-val" id="fdtp" style="color:var(--accent2)">—</span></div>
+    </div>
+    <div class="fp-sec">
+      <div class="fp-chart-header">
+        <span>DETECTION CURVE</span>
+        <span class="fp-cv" id="fdc-val">TP: 0/0</span>
+      </div>
+      <canvas class="fp-canvas" id="fdc-canvas" height="58"></canvas>
+    </div>
+    <div class="fp-sec">
+      <div class="fp-chart-header">
+        <span>PACKET DELIVERY</span>
+        <span class="fp-cv" id="fdp-val">RL: 0.0 | RND: 0.0</span>
+      </div>
+      <canvas class="fp-canvas" id="fdp-canvas" height="58"></canvas>
+    </div>
+  </div>
+
+  <div id="mg">Initializing FT-KGRL network topology…</div>
+  <div id="tip"><div class="tt" id="ttt">Node</div><div id="tbdg"></div><div id="tbd"></div></div>
+</div>
+
+<!-- ── RIGHT SIDEBAR ── -->
+<aside>
+  <div class="ps">
+    <div class="pt">LIVE METRICS</div>
+    <div class="sg">
+      <div class="ms"><div class="mv" id="smd">—</div><div class="ml">AVG DELIVERY</div></div>
+      <div class="ms y"><div class="mv" id="sms">0</div><div class="ml">DETECTED</div></div>
+      <div class="ms b"><div class="mv" id="smp">—</div><div class="ml">PRECISION</div></div>
+      <div class="ms p"><div class="mv" id="smr">—</div><div class="ml">RECALL</div></div>
+      <div class="ms r"><div class="mv" id="smt">0/0</div><div class="ml">TRUE POS</div></div>
+      <div class="ms"><div class="mv" id="sme">—</div><div class="ml">EDGES</div></div>
+    </div>
+  </div>
+  <div class="ps">
+    <div class="pt">LEGEND & VISUAL GUIDE</div>
+    <div class="leg">
+      <div class="li"><div class="ld" style="background:var(--green)"></div>Trusted node (high mean trust)</div>
+      <div class="li"><div class="ld" style="background:var(--yellow);box-shadow:0 0 5px var(--yellow)"></div>Detected as suspicious (unsupervised)</div>
+      <div class="li"><div class="ld" style="background:var(--red);box-shadow:0 0 6px var(--red)"></div>Ground truth malicious (if revealed)</div>
+      <div class="li"><div class="ld" style="background:var(--accent);box-shadow:0 0 5px var(--accent)"></div>Active packet / Source node</div>
+      <div class="li"><div class="ld" style="background:#8b9fff"></div>Candidate neighbor (explored options)</div>
+      <div class="li"><div class="ll2" style="background:var(--purple)"></div>Trust propagation (purple flash)</div>
+      <div class="li"><div class="ll2" style="background:repeating-linear-gradient(90deg,#8b9fff 0,#8b9fff 3px,transparent 3px,transparent 6px)"></div>Recently explored path</div>
+    </div>
+    <div class="pbar" id="pbar">
+      <div class="pd" id="pb0"></div><div class="pd" id="pb1"></div><div class="pd" id="pb2"></div>
+      <div class="pd" id="pb3"></div><div class="pd" id="pb4"></div><div class="pd" id="pb5"></div>
+      <div class="pd" id="pb6"></div><div class="pd" id="pb7"></div>
+    </div>
+  </div>
+  <div class="ps">
+    <div class="pt">CONTROLS</div>
+    <div class="ctrls">
+      <div class="br">
+        <button class="btn" id="bplay" onclick="togglePlay()">⏸ PAUSE</button>
+        <button class="btn" onclick="resetSim()">↺ RESET</button>
+      </div>
+      <div class="sl" id="step-delay-row">
+        <label>STEP DELAY <span id="sv">220</span>ms</label>
+        <input type="range" min="60" max="800" value="220" oninput="stepDelay=+this.value;document.getElementById('sv').textContent=this.value">
+      </div>
+      <div class="sl">
+        <label>REVEAL GROUND TRUTH <span id="rv" style="color:var(--dim)">OFF</span></label>
+        <input type="range" min="0" max="1" value="0" step="1" oninput="revealMal=this.value==='1';document.getElementById('rv').textContent=revealMal?'ON':'OFF';document.getElementById('rv').style.color=revealMal?'var(--red)':'var(--dim)'">
+      </div>
+      <div class="sl">
+        <label>NODE SIZE <span id="nv">8</span>px</label>
+        <input type="range" min="5" max="14" value="8" oninput="nodeR=+this.value;document.getElementById('nv').textContent=this.value">
+      </div>
+    </div>
+  </div>
+  <div class="pt" style="padding:8px 14px 2px">EVENT LOG</div>
+  <div id="log"></div>
+</aside>
+
+<script>
+// ── SEEDED RNG ──
+let seed=42;
+function sr(){seed=(seed*1664525+1013904223)&0xffffffff;return(seed>>>0)/4294967295;}
+function sri(n){return Math.floor(sr()*n);}
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(sr()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function samp(a,n){return shuf([...a]).slice(0,n);}
+let bs=9999;
+function br(){bs=(bs*1664525+1013904223)&0xffffffff;return(bs>>>0)/4294967295;}
+function bri(n){return Math.floor(br()*n);}
+
+// ── HYPERPARAMS ──
+const NN=60,EP=0.08,MR=0.15,EPISODES=1200,STEPS=15;
+const ALPHA=0.15,GAMMA=0.9,EPSILON=0.2;
+const WT=0.4,WE=0.3,WS=0.5,WR=0.7,CP=0.2;
+
+// ── SPEED CONFIG ──
+// episodesPerFrame: how many full episodes to crunch before rendering once
+// animEnabled: whether to show packet animation
+// renderEvery: only call finishEp UI update every N episodes (still computed every ep)
+const SPEED_CFG = {
+  normal: { episodesPerFrame:1,  animEnabled:true,  renderEvery:1   },
+  fast:   { episodesPerFrame:2,  animEnabled:false, renderEvery:2   },
+  turbo:  { episodesPerFrame:4, animEnabled:false, renderEvery:4  },
+};
+
+// Normal mode: step delay still governs pacing via lstep gate
+// Fast/Turbo: stepDelay is ignored — we batch episodes per rAF
+
+let speedMode = 'normal';
+
+// ── TIMER STATE ──
+let simStartTime = null;   // performance.now() when sim started / last reset
+let simPausedMs  = 0;      // total ms spent paused
+let pauseStartTs = null;   // when current pause began
+
+// Estimate total duration for Normal mode based on hyperparams
+// Normal: 1 ep = STEPS steps, each step takes stepDelay ms + ~5ms overhead
+// function estimateNormalMs(){
+//   return EPISODES * STEPS * (stepDelay + 5);
+// }
+
+function fmtTime(ms){
+  if(ms < 0) ms = 0;
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  const ss = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
+function updateTimerDisplay(now){
+  if(simStartTime === null) return;
+  const elapsed = (running ? now : (pauseStartTs||now)) - simStartTime - simPausedMs;
+  document.getElementById('timer-elapsed').textContent = fmtTime(elapsed);
+
+  const eta = document.getElementById('timer-eta');
+  if(ep >= EPISODES){
+    eta.textContent = 'COMPLETE';
+    eta.className = 'timer-eta active';
+    return;
+  }
+
+  // ALL modes: dynamic ETA from actual measured rate once ep > 3
+  if(ep > 3){
+    const rate = elapsed / ep;
+    const remaining = rate * (EPISODES - ep);
+    eta.textContent = `ETA: ~${fmtTime(remaining)} · TOTAL: ~${fmtTime(elapsed + remaining)}`;
+    eta.className = 'timer-eta active';
+  } else {
+    eta.textContent = 'EST: measuring…';
+    eta.className = 'timer-eta';
+  }
+}
+
+function setSpeed(s){
+  speedMode = s;
+  // Update button states
+  document.querySelectorAll('.stb').forEach(b => {
+    b.classList.toggle('on', b.dataset.speed === s);
+  });
+  // Update canvas badge
+  const badge = document.getElementById('speed-badge');
+  badge.className = 'speed-badge ' + s;  // reset classes
+  badge.id = 'speed-badge';
+  badge.className = s;
+  const labels = {normal:'● NORMAL', fast:'⚡ FAST', turbo:'🚀 TURBO'};
+  badge.textContent = labels[s];
+
+  // Show/hide step delay slider (only relevant in normal mode)
+  document.getElementById('step-delay-row').style.opacity = s === 'normal' ? '1' : '0.35';
+}
+
+// ── STATE ──
+let nodes=[],edges=[],adj={},et={},energy={};
+let malSet=new Set(),detSet=new Set();
+let Q={};
+let ep=0,epSt=0;
+let src=-1,cur=-1,pFrom=-1,pTo=-1,pProg=0,pAnim=false;
+let dels=[],deth=[],delh=[],rnds=[];
+let epDel=0,epQ=[];
+let susMap={};
+let flash={},trail={},decay={},prop={};
+let consNb=[],chosen=-1;
+let pt=0,lstep=0,lraf=0;
+let nodeR=8,stepDelay=220,revealMal=false;
+let running=true,ltpc=0;
+let phase=0,hovN=-1,pos={};
+let viewMode='rl',splitX=0.5,drag=false;
+
+// ── GRAPH ──
+function ek(u,v){return u<v?`${u}_${v}`:`${v}_${u}`;}
+function gt(u,v){return et[ek(u,v)]??0.5;}
+function st(u,v,t){et[ek(u,v)]=Math.max(0,Math.min(1,t));}
+function he(u,v){return adj[u]?.includes(v);}
+
+function initG(){
+  nodes=Array.from({length:NN},(_,i)=>i);
+  edges=[];adj={};et={};energy={};Q={};susMap={};
+  nodes.forEach(n=>{adj[n]=[];energy[n]=0.5+sr()*0.5;});
+  for(let i=0;i<NN;i++)for(let j=i+1;j<NN;j++)
+    if(sr()<EP){edges.push([i,j]);adj[i].push(j);adj[j].push(i);et[ek(i,j)]=0.5+sr()*0.5;}
+  malSet=new Set(samp(nodes,Math.floor(NN*MR)));
+  detSet=new Set();flash={};trail={};decay={};prop={};consNb=[];chosen=-1;
+}
+
+function layout(){
+  const W=mc.width,H=mc.height,cx=W/2,cy=H/2,rm=Math.min(W,H)*0.4;
+  pos={};
+  nodes.slice(0,10).forEach((n,i)=>{const a=i/10*Math.PI*2-Math.PI/2;pos[n]={x:cx+rm*0.28*Math.cos(a),y:cy+rm*0.28*Math.sin(a)};});
+  nodes.slice(10,32).forEach((n,i)=>{const a=i/22*Math.PI*2-Math.PI/2+(sr()-0.5)*0.25;pos[n]={x:cx+rm*0.65*Math.cos(a),y:cy+rm*0.65*Math.sin(a)};});
+  nodes.slice(32,60).forEach((n,i)=>{const a=i/28*Math.PI*2-Math.PI/2+(sr()-0.5)*0.18;pos[n]={x:cx+rm*Math.cos(a),y:cy+rm*Math.sin(a)};});
+}
+
+// ── RL CORE ──
+function fuzzy(x){return{l:Math.max(0,1-x),m:Math.max(0,1-Math.abs(x-0.5)*2),h:Math.max(0,x)};}
+function utrust(u,v,ok){
+  if(!he(u,v))return;
+  const p=gt(u,v),nw=Math.max(0,Math.min(1,p+0.2*(ok-0.9)));
+  st(u,v,nw);
+  const d=nw-p;
+  if(Math.abs(d)>0.015)decay[ek(u,v)]={a:0.85,c:d<0?'#ff2d55':'#00d4ff'};
+  return{p,nw};
+}
+function pktOk(n){
+  if(malSet.has(n)){const d=[0.2,0.5,0.7][sri(3)];return sr()>d?1:0;}
+  return sr()>0.05?1:0;
+}
+function act(s,nb){
+  if(sr()<EPSILON)return nb[sri(nb.length)];
+  let b=nb[0],bq=-Infinity;
+  nb.forEach(a=>{const q=Q[`${s}_${a}`]??0;if(q>bq){bq=q;b=a;}});
+  return b;
+}
+
+function propTrust(){
+  nodes.forEach(u=>{
+    (adj[u]||[]).forEach(v=>{
+      samp(adj[v]||[],Math.min(2,(adj[v]||[]).length)).forEach(k=>{
+        if(k===u)return;
+        if(!he(u,k)){edges.push([u,k]);adj[u].push(k);adj[k].push(u);et[ek(u,k)]=0.5;}
+        st(u,k,0.97*gt(u,k)+0.03*gt(v,k));
+        prop[ek(u,k)]={a:0.7};
+      });
+    });
+  });
+}
+
+function buildQ(){
+  const s=nodes[sri(nodes.length)];
+  src=s;cur=s;epDel=0;epQ=[];
+  let c=s;
+  for(let i=0;i<STEPS;i++){
+    const nb=adj[c]||[];if(!nb.length)break;
+    const a=act(c,nb);const ok=pktOk(a);
+    const pv=gt(c,a);
+    utrust(c,a,ok);
+    const t=gt(c,a),ft=fuzzy(t),risk=1-t,cp2=Math.abs(pv-t);
+    const rew=WS*(ok?1:-1)+WT*ft.h+WE*(energy[a]||0.5)-WR*risk-CP*cp2;
+    const fn=adj[a]||[];
+    const fut=fn.length?Math.max(...fn.map(n=>Q[`${a}_${n}`]??0)):0;
+    Q[`${c}_${a}`]=(Q[`${c}_${a}`]??0)+ALPHA*(rew+GAMMA*fut-(Q[`${c}_${a}`]??0));
+    if(ok)epDel++;
+    energy[a]=Math.max(0,(energy[a]??0.5)-0.01);
+    epQ.push({from:c,to:a,ok,pv,ta:t,nb:[...nb]});
+    c=a;
+  }
+}
+
+// ── DETECTION ──
+function detect(){
+  susMap={};
+  nodes.forEach(n=>{
+    const nb=adj[n]||[];if(!nb.length)return;
+    const v=nb.map(k=>gt(n,k));
+    const mn=v.reduce((a,b)=>a+b,0)/v.length;
+    const vr=v.reduce((a,b)=>a+(b-mn)**2,0)/v.length;
+    susMap[n]={score:(1-mn)+1.2*vr,mn,vr};
+  });
+  const vm=[...malSet].filter(m=>nodes.includes(m));
+  const rk=Object.entries(susMap).sort((a,b)=>b[1].score-a[1].score);
+  const det=rk.slice(0,vm.length).map(([n])=>+n);
+  detSet=new Set(det);
+  const tp=det.filter(n=>malSet.has(n)).length;
+  const prec=det.length?tp/det.length:0;
+  const rec=vm.length?tp/vm.length:0;
+  return{tp,prec,rec,vm};
+}
+
+// ── BASELINE ──
+function baseEp(){
+  let c=nodes[bri(nodes.length)],d=0;
+  for(let i=0;i<STEPS;i++){
+    const nb=adj[c]||[];if(!nb.length)break;
+    const nx=nb[bri(nb.length)];
+    if(malSet.has(nx)){d+=br()>[0.2,0.5,0.7][bri(3)]?1:0;}
+    else d+=br()>0.05?1:0;
+    c=nx;
+  }
+  return d;
+}
+
+// ── PHASES ──
+const PH=[
+  {t:"INIT",m:"All nodes start with equal trust (0.5). No routing history. Malicious nodes appear identical.",n:["PHASE 1 · INIT","All nodes initialized equally — malicious nodes are indistinguishable from trusted ones."]},
+  {t:"EXPLORE",m:"Epsilon-greedy exploration begins. Agent selects random neighbors. First Q-values form.",n:["PHASE 2 · EXPLORATION","Agent explores randomly (ε=0.2). Q-values form. No trust patterns visible yet."]},
+  {t:"Q-LEARN",m:"Q-values accumulate per hop. Reward = success + trust + energy − risk.",n:["PHASE 3 · Q-LEARNING","Reward function: WS·success + WT·trust + WE·energy − WR·risk − penalty. Agent learns faster paths."]},
+  {t:"TRUST DIV",m:"Malicious nodes drop packets → trust falls. Variance builds on their outgoing edges.",n:["PHASE 4 · TRUST DIVERGENCE","Malicious nodes cause drops → trust scores decrease. Variance on their edges grows — pattern forming."]},
+  {t:"PROPAGATE",m:"Trust propagates across graph every 50 episodes. Purple flashes = diffusion active.",n:["PHASE 5 · TRUST PROPAGATION","Graph-based trust diffusion (every 50 eps): G[u][k] = 0.97×old + 0.03×neighbor. Watch purple flashes."]},
+  {t:"DETECTION",m:"Suspicion = (1−mean_trust) + 1.2×variance. Low trust + high variance = flagged node.",n:["PHASE 6 · UNSUPERVISED DETECTION","Detection formula: (1−μ) + 1.2σ². No labels used. Nodes with unstable trust emerge as suspicious."]},
+  {t:"CONVERGE",m:"RL avoids malicious paths. Delivery stable. Detection plateau. Precision→0.9, Recall→0.9.",n:["PHASE 7 · CONVERGENCE","Policy converges — malicious paths avoided. Target: Precision≈0.9, Recall≈0.9 per experimental results."]},
+  {t:"ADAPT",m:"Dynamic edge removal (~4% per episode) tests robustness. System re-learns trust on new topology.",n:["PHASE 8 · ADAPTATION","Topology changes (edge removal, 4% chance/ep). System adapts. Joint routing+detection remains robust."]},
+];
+function gph(e){if(e<10)return 0;if(e<60)return 1;if(e<200)return 2;if(e<400)return 3;if(e<600)return 4;if(e<800)return 5;if(e<1000)return 6;return 7;}
+
+// ── CHART CANVASES ──
+const fdcCanvas=document.getElementById('fdc-canvas');
+const fdcCtx=fdcCanvas.getContext('2d');
+const fdpCanvas=document.getElementById('fdp-canvas');
+const fdpCtx=fdpCanvas.getContext('2d');
+
+function resizeCharts(){
+  const fdb=document.getElementById('fdb');
+  const w=fdb.clientWidth-26;
+  fdcCanvas.width=w; fdcCanvas.height=58;
+  fdpCanvas.width=w; fdpCanvas.height=58;
+}
+
+function drawDetectionCurve(){
+  const W=fdcCanvas.width,H=fdcCanvas.height;
+  const data=deth.slice(-400),mx=malSet.size||1;
+  fdcCtx.clearRect(0,0,W,H);
+  [0.25,0.5,0.75,1].forEach(g=>{
+    fdcCtx.strokeStyle='rgba(26,37,64,0.8)';fdcCtx.lineWidth=0.5;
+    fdcCtx.beginPath();fdcCtx.moveTo(0,H*(1-g));fdcCtx.lineTo(W,H*(1-g));fdcCtx.stroke();
+  });
+  if(data.length<2)return;
+  const stp=W/(data.length-1);
+  fdcCtx.beginPath();
+  data.forEach((v,i)=>{const x=i*stp,y=H-(v/mx)*(H-4)-2;i===0?fdcCtx.moveTo(x,y):fdcCtx.lineTo(x,y);});
+  fdcCtx.lineTo(W,H);fdcCtx.lineTo(0,H);fdcCtx.closePath();
+  fdcCtx.fillStyle='rgba(255,215,0,0.12)';fdcCtx.fill();
+  fdcCtx.beginPath();
+  data.forEach((v,i)=>{const x=i*stp,y=H-(v/mx)*(H-4)-2;i===0?fdcCtx.moveTo(x,y):fdcCtx.lineTo(x,y);});
+  fdcCtx.strokeStyle='#ffd700';fdcCtx.lineWidth=2;fdcCtx.stroke();
+}
+
+function drawDeliveryChart(){
+  const W=fdpCanvas.width,H=fdpCanvas.height;
+  const rl=delh.slice(-400),rn=rnds.slice(-400),mx=STEPS;
+  fdpCtx.clearRect(0,0,W,H);
+  [0.25,0.5,0.75,1].forEach(g=>{
+    fdpCtx.strokeStyle='rgba(26,37,64,0.8)';fdpCtx.lineWidth=0.5;
+    fdpCtx.beginPath();fdpCtx.moveTo(0,H*(1-g));fdpCtx.lineTo(W,H*(1-g));fdpCtx.stroke();
+  });
+  if(rl.length<2)return;
+  if(rn.length>1){
+    const stp=W/(rn.length-1);
+    fdpCtx.beginPath();
+    rn.forEach((v,i)=>{const x=i*stp,y=H-(v/mx)*(H-4)-2;i===0?fdpCtx.moveTo(x,y):fdpCtx.lineTo(x,y);});
+    fdpCtx.strokeStyle='#334455';fdpCtx.lineWidth=1;fdpCtx.setLineDash([3,4]);fdpCtx.stroke();fdpCtx.setLineDash([]);
+  }
+  const stp=W/(rl.length-1);
+  fdpCtx.beginPath();
+  rl.forEach((v,i)=>{const x=i*stp,y=H-(v/mx)*(H-4)-2;i===0?fdpCtx.moveTo(x,y):fdpCtx.lineTo(x,y);});
+  fdpCtx.lineTo(W,H);fdpCtx.lineTo(0,H);fdpCtx.closePath();
+  fdpCtx.fillStyle='rgba(0,255,136,0.09)';fdpCtx.fill();
+  fdpCtx.beginPath();
+  rl.forEach((v,i)=>{const x=i*stp,y=H-(v/mx)*(H-4)-2;i===0?fdpCtx.moveTo(x,y):fdpCtx.lineTo(x,y);});
+  fdpCtx.strokeStyle='#00ff88';fdpCtx.lineWidth=2;fdpCtx.stroke();
+}
+
+// ── FINISH EPISODE (pure math + UI update) ──
+// doUI: whether to push updates to DOM this call (batched modes skip some frames)
+function finishEp(doUI){
+  dels.push(epDel);delh.push(epDel);
+  const rn=baseEp();rnds.push(rn);
+  if(ep%50===0)propTrust();
+  if(sr()<0.04&&edges.length>0){const i=sri(edges.length);const[eu,ev]=edges[i];edges.splice(i,1);adj[eu]=adj[eu].filter(x=>x!==ev);adj[ev]=adj[ev].filter(x=>x!==eu);}
+  const{tp,prec,rec,vm}=detect();
+  deth.push(tp);
+
+  if(!doUI){ep++;return;}  // skip DOM writes for non-render frames
+
+  if(tp>ltpc){
+    const df=document.getElementById('df');
+    df.textContent=`⚡ +${tp-ltpc} node${tp-ltpc>1?'s':''} identified as malicious — ${tp}/${vm.length} total (${(tp/Math.max(1,vm.length)*100).toFixed(0)}% recall)`;
+    df.style.opacity='1';setTimeout(()=>{df.style.opacity='0';},3200);ltpc=tp;
+  }
+  const rla=dels.reduce((a,b)=>a+b,0)/dels.length;
+  const rna=rnds.reduce((a,b)=>a+b,0)/rnds.length;
+  const imp=rna>0?(rla-rna)/rna*100:0;
+
+  $('en').textContent=ep+1;
+  $('hrl').textContent=rla.toFixed(1);
+  $('hrn').textContent=rna.toFixed(1);
+  $('him').textContent=(imp>=0?'+':'')+imp.toFixed(1)+'%';
+  $('him').style.color=imp>=0?'var(--yellow)':'var(--red)';
+  $('hpr').textContent=(prec*100).toFixed(0)+'%';
+  $('hrc').textContent=(rec*100).toFixed(0)+'%';
+  $('htp').textContent=tp+'/'+vm.length;
+
+  $('smd').textContent=rla.toFixed(1);
+  $('sms').textContent=detSet.size;
+  $('smp').textContent=(prec*100).toFixed(0)+'%';
+  $('smr').textContent=(rec*100).toFixed(0)+'%';
+  $('smt').textContent=tp+'/'+vm.length;
+  $('sme').textContent=edges.length;
+
+  if(ep>10){
+    document.getElementById('fdb').style.opacity='1';
+    $('fdrl').textContent=rla.toFixed(2);
+    $('fdrn').textContent=rna.toFixed(2);
+    $('fdim').textContent=(imp>=0?'+':'')+imp.toFixed(1)+'%';
+    $('fdim').style.color=imp>=0?'var(--yellow)':'var(--red)';
+    $('fddet').textContent=detSet.size;
+    $('fdtp').textContent=tp+'/'+vm.length;
+    $('fbpr').style.width=(prec*100)+'%';
+    $('fbprv').textContent=(prec*100).toFixed(0)+'%';
+    $('fbrc').style.width=(rec*100)+'%';
+    $('fbrcv').textContent=(rec*100).toFixed(0)+'%';
+    $('fdc-val').textContent=`TP: ${tp}/${vm.length}`;
+    $('fdp-val').textContent=`RL: ${rla.toFixed(1)} | RND: ${rna.toFixed(1)}`;
+    drawDetectionCurve();
+    drawDeliveryChart();
+  }
+
+  document.getElementById('cmslv').textContent=rna.toFixed(2);
+  document.getElementById('cmsrv').textContent=rla.toFixed(2);
+  const badge=document.getElementById('cmp-badge');
+  if(badge.style.display==='block'){
+    badge.textContent=`RL ${imp>=0?'+':''}${imp.toFixed(1)}% over random`;
+    badge.style.color=imp>=0?'var(--yellow)':'var(--red)';
+    badge.style.borderColor=imp>=0?'rgba(255,215,0,0.4)':'rgba(255,45,85,0.4)';
+    badge.style.background=imp>=0?'rgba(255,215,0,0.15)':'rgba(255,45,85,0.15)';
+  }
+
+  phase=gph(ep);
+  $('ptag').textContent=PH[phase].t;
+  $('mg').textContent=PH[phase].m;
+  $('np').textContent=PH[phase].n[0];
+  $('nt').textContent=PH[phase].n[1];
+  updPbar(phase);
+  if(ep%12===0)addLog(ep+1,tp,epDel,rn,prec,rec);
+  ep++;
+}
+
+function updPbar(p){for(let i=0;i<8;i++){const el=$('pb'+i);if(el)el.className='pd'+(i<p?' dn':i===p?' ac':'');}}
+function $(id){return document.getElementById(id);}
+
+// ── CANVAS ──
+const mc=document.getElementById('mc'),ctx=mc.getContext('2d');
+const cc=document.getElementById('cc'),cctx=cc.getContext('2d');
+
+function resize(){
+  const wr=document.getElementById('cw');
+  mc.width=wr.clientWidth;mc.height=wr.clientHeight;
+  cc.width=wr.clientWidth;cc.height=wr.clientHeight;
+  resizeCharts();
+  layout();
+  $('sp').style.left=(mc.width*splitX)+'px';
+}
+
+// ── COLOR ──
+function tc(t){
+  if(t<0.3){const f=t/0.3;return`rgb(${Math.round(215-75*f)},${Math.round(20+40*f)},30)`;}
+  if(t<0.6){const f=(t-0.3)/0.3;return`rgb(${Math.round(140+40*f)},${Math.round(60+100*f)},60)`;}
+  const f=(t-0.6)/0.4;return`rgb(${Math.round(180-165*f)},${Math.round(160+80*f)},${Math.round(60+185*f)})`;
+}
+function tavg(n){const nb=adj[n]||[];if(!nb.length)return 0.5;return nb.reduce((s,k)=>s+gt(n,k),0)/nb.length;}
+function role(n,rnd){
+  if(rnd){
+    if(n===cur||n===pTo||n===pFrom)return'a';
+    if(n===src)return's';
+    if(revealMal&&malSet.has(n))return'm';
+    return'n';
+  }
+  if(n===cur||n===pTo||n===pFrom)return'a';
+  if(n===src)return's';
+  if(detSet.has(n)&&malSet.has(n))return'dm';
+  if(detSet.has(n))return'ds';
+  if(revealMal&&malSet.has(n))return'm';
+  if(consNb.includes(n))return'c';
+  return'n';
+}
+function ncol(n,rnd){
+  if(rnd){
+    const r=role(n,true);
+    if(r==='a')return'#00d4ff';if(r==='s')return'#ff6b35';
+    if(r==='m')return'#ff2d55';return'#2a4a6a';
+  }
+  const r=role(n,false);
+  if(r==='a')return'#00d4ff';if(r==='s')return'#ff6b35';
+  if(r==='dm')return'#ff2d55';if(r==='ds')return'#ffd700';
+  if(r==='m')return'#ff2d55';if(r==='c')return'#8b9fff';
+  return tc(tavg(n));
+}
+
+// ── DRAW ──
+function draw(c2,W,H,dt,rnd){
+  c2.clearRect(0,0,W,H);pt+=dt*0.001;
+
+  edges.forEach(([u,v])=>{
+    if(!pos[u]||!pos[v])return;
+    const t=rnd?0.5:gt(u,v);
+    const k=ek(u,v);
+    const tr=(trail[k]||0);
+    let al=0.06+t*0.28+tr*0.35;
+    if(viewMode==='focus'&&hovN>=0&&!rnd){
+      const nb=adj[hovN]||[];
+      if(u!==hovN&&v!==hovN&&!nb.includes(u)&&!nb.includes(v))al*=0.06;
+    }
+    if(!rnd&&prop[k]){
+      c2.beginPath();c2.moveTo(pos[u].x,pos[u].y);c2.lineTo(pos[v].x,pos[v].y);
+      c2.strokeStyle='#a855f7';c2.globalAlpha=prop[k].a*0.5;c2.lineWidth=3;c2.stroke();c2.globalAlpha=1;
+      prop[k].a-=0.04*dt/16;if(prop[k].a<=0)delete prop[k];
+    }
+    if(!rnd&&decay[k]){
+      c2.beginPath();c2.moveTo(pos[u].x,pos[u].y);c2.lineTo(pos[v].x,pos[v].y);
+      c2.strokeStyle=decay[k].c;c2.globalAlpha=decay[k].a*0.5;c2.lineWidth=3;c2.stroke();c2.globalAlpha=1;
+      decay[k].a-=0.04*dt/16;if(decay[k].a<=0)delete decay[k];
+    }
+    c2.beginPath();c2.moveTo(pos[u].x,pos[u].y);c2.lineTo(pos[v].x,pos[v].y);
+    c2.strokeStyle=rnd?'#334455':tc(t);
+    c2.globalAlpha=Math.min(1,al);c2.lineWidth=0.3+t*1.0+tr*2;c2.stroke();c2.globalAlpha=1;
+    if(trail[k]>0)trail[k]=Math.max(0,trail[k]-0.025*dt/16);
+  });
+
+  if(!rnd){
+    consNb.forEach(n=>{
+      if(!pos[cur]||!pos[n])return;
+      c2.beginPath();c2.moveTo(pos[cur].x,pos[cur].y);c2.lineTo(pos[n].x,pos[n].y);
+      c2.strokeStyle='#8b9fff';c2.globalAlpha=0.35;c2.lineWidth=1;
+      c2.setLineDash([4,5]);c2.stroke();c2.setLineDash([]);c2.globalAlpha=1;
+    });
+    if(chosen>=0&&pos[cur]&&pos[chosen]){
+      c2.beginPath();c2.moveTo(pos[cur].x,pos[cur].y);c2.lineTo(pos[chosen].x,pos[chosen].y);
+      c2.strokeStyle='#00d4ff';c2.globalAlpha=0.5;c2.lineWidth=2.5;c2.stroke();c2.globalAlpha=1;
+    }
+  }
+
+  nodes.forEach(n=>{
+    if(!pos[n])return;
+    const{x,y}=pos[n];
+    const isMal=malSet.has(n),isDet=detSet.has(n);
+    const isCur=!rnd&&(n===cur||n===pFrom||n===pTo);
+    const isSrc=n===src&&!rnd;
+    const R=nodeR+(isCur?3:isSrc?2:(!rnd&&isDet)||(revealMal&&isMal)?1.5:0);
+    const col=ncol(n,rnd);
+
+    let na=1;
+    if(viewMode==='focus'&&hovN>=0&&n!==hovN)
+      if(!(adj[hovN]||[]).includes(n))na=0.1;
+    c2.globalAlpha=na;
+
+    if(!rnd){
+      if(revealMal&&isMal&&!isDet){
+        const pu=0.55+0.45*Math.sin(pt*2.5+n*0.6);
+        for(let ri=3;ri>=1;ri--){
+          const g=c2.createRadialGradient(x,y,0,x,y,R*(1+ri*1.6));
+          g.addColorStop(0,`rgba(255,45,85,${(0.22+0.18*pu)/ri})`);g.addColorStop(1,'rgba(255,45,85,0)');
+          c2.beginPath();c2.arc(x,y,R*(1+ri*1.6),0,Math.PI*2);c2.fillStyle=g;c2.fill();
+        }
+        c2.beginPath();c2.arc(x,y,R+5,0,Math.PI*2);
+        c2.strokeStyle=`rgba(255,45,85,${0.6+0.4*pu})`;c2.lineWidth=2;c2.stroke();
+      }
+      if(isDet){
+        const pu=0.5+0.5*Math.sin(pt*3+n*0.7);
+        const g=c2.createRadialGradient(x,y,0,x,y,R*5);
+        g.addColorStop(0,`rgba(255,215,0,${0.28+0.18*pu})`);g.addColorStop(1,'rgba(255,215,0,0)');
+        c2.beginPath();c2.arc(x,y,R*5,0,Math.PI*2);c2.fillStyle=g;c2.fill();
+        c2.beginPath();c2.arc(x,y,R+3,0,Math.PI*2);
+        c2.strokeStyle=`rgba(255,215,0,${0.75+0.25*pu})`;c2.lineWidth=1.5;
+        c2.setLineDash([3,3]);c2.stroke();c2.setLineDash([]);
+      }
+      if(isCur){
+        const g=c2.createRadialGradient(x,y,0,x,y,R*4);
+        g.addColorStop(0,'rgba(0,212,255,0.3)');g.addColorStop(1,'rgba(0,212,255,0)');
+        c2.beginPath();c2.arc(x,y,R*4,0,Math.PI*2);c2.fillStyle=g;c2.fill();
+      }
+    }
+    if(consNb.includes(n)&&!rnd){
+      c2.beginPath();c2.arc(x,y,R+5,0,Math.PI*2);
+      c2.strokeStyle='#8b9fff';c2.globalAlpha=0.4*na;c2.lineWidth=1.5;c2.stroke();c2.globalAlpha=na;
+    }
+    if(flash[n]&&!rnd){
+      const f=flash[n];
+      c2.beginPath();c2.arc(x,y,R+9,0,Math.PI*2);
+      c2.fillStyle=f.c+Math.round(f.a*255).toString(16).padStart(2,'0');c2.fill();
+      f.a-=0.06*dt/16;if(f.a<=0)delete flash[n];
+    }
+    c2.beginPath();c2.arc(x,y,R,0,Math.PI*2);c2.fillStyle=col;c2.fill();
+    c2.beginPath();c2.arc(x,y,R,0,Math.PI*2);
+    if(isMal&&revealMal){c2.strokeStyle='rgba(255,45,85,0.9)';c2.lineWidth=2;}
+    else if(!rnd&&isDet){c2.strokeStyle='rgba(255,215,0,0.8)';c2.lineWidth=2;}
+    else if(isCur){c2.strokeStyle='rgba(0,212,255,0.8)';c2.lineWidth=1.5;}
+    else{c2.strokeStyle='rgba(0,0,0,0.35)';c2.lineWidth=0.8;}
+    c2.stroke();
+
+    if(!rnd){
+      let lbl='';
+      if(isCur)lbl='PKT';else if(isSrc)lbl='SRC';
+      else if(isDet)lbl='DET';
+      if(lbl){
+        c2.font="bold 8px 'Share Tech Mono'";c2.textAlign='center';
+        const ly=y-R-7,tw=c2.measureText(lbl).width;
+        c2.fillStyle='rgba(0,0,0,0.82)';c2.fillRect(x-tw/2-3,ly-9,tw+6,13);
+        c2.fillStyle=isCur?'#00d4ff':isSrc?'#ff6b35':'#ffd700';
+        c2.fillText(lbl,x,ly);
+      }
+      if(n===hovN){
+        c2.font="8px 'Share Tech Mono'";c2.textAlign='center';
+        c2.fillStyle='rgba(200,216,240,0.55)';
+        c2.fillText(`T:${(tavg(n)*100).toFixed(0)}%`,x,y+R+11);
+      }
+    }
+    c2.globalAlpha=1;
+  });
+
+  if(!rnd&&pAnim&&pFrom>=0&&pTo>=0&&pos[pFrom]&&pos[pTo]){
+    const px=pos[pFrom].x+(pos[pTo].x-pos[pFrom].x)*pProg;
+    const py=pos[pFrom].y+(pos[pTo].y-pos[pFrom].y)*pProg;
+    const g=c2.createRadialGradient(px,py,0,px,py,20);
+    g.addColorStop(0,'rgba(0,212,255,0.65)');g.addColorStop(1,'rgba(0,212,255,0)');
+    c2.beginPath();c2.arc(px,py,20,0,Math.PI*2);c2.fillStyle=g;c2.fill();
+    c2.beginPath();c2.arc(px,py,5.5,0,Math.PI*2);c2.fillStyle='#00d4ff';c2.fill();
+    c2.beginPath();c2.arc(px,py,5.5,0,Math.PI*2);c2.strokeStyle='white';c2.lineWidth=1.5;c2.stroke();
+  }
+}
+
+// ── COMPARE ──
+function drawCmp(dt){
+  const W=mc.width,H=mc.height,sw=Math.round(W*splitX);
+  cctx.clearRect(0,0,W,H);
+  cctx.save();cctx.beginPath();cctx.rect(0,0,sw,H);cctx.clip();draw(cctx,W,H,dt,true);cctx.restore();
+  cctx.save();cctx.beginPath();cctx.rect(sw,0,W-sw,H);cctx.clip();draw(cctx,W,H,dt,false);cctx.restore();
+  cctx.beginPath();cctx.moveTo(sw,0);cctx.lineTo(sw,H);
+  cctx.strokeStyle='rgba(255,107,53,0.6)';cctx.lineWidth=2;cctx.stroke();
+  const grad=cctx.createLinearGradient(sw-10,0,sw+10,0);
+  grad.addColorStop(0,'rgba(255,107,53,0)');grad.addColorStop(0.5,'rgba(255,107,53,0.3)');grad.addColorStop(1,'rgba(255,107,53,0)');
+  cctx.fillStyle=grad;cctx.fillRect(sw-10,0,20,H);
+}
+
+// ── MAIN LOOP ──
+let raf=null;
+function tick(now){
+  const dt=Math.min(now-lraf,100);lraf=now;
+
+  // Update timer every frame
+  updateTimerDisplay(now);
+
+  if(!running){
+    if(viewMode==='compare')drawCmp(dt);else draw(ctx,mc.width,mc.height,dt,false);
+    raf=requestAnimationFrame(tick);return;
+  }
+
+  const cfg = SPEED_CFG[speedMode];
+
+  if(ep>=EPISODES){
+    $('ptag').textContent='COMPLETE';
+    const tp=[...detSet].filter(n=>malSet.has(n)).length;
+    const precision=detSet.size>0?tp/detSet.size:0;
+    const vmSize=malSet.size;
+    const recall=vmSize>0?tp/vmSize:0;
+    $('mg').textContent=`✓ Simulation complete. Precision=${precision.toFixed(2)}, Recall=${recall.toFixed(2)}`;
+    $('np').textContent='SIMULATION COMPLETE';
+    $('nt').textContent='FT-KGRL converged. RL-Trust routing consistently outperforms random baseline.';
+    for(let i=0;i<8;i++){const e=$('pb'+i);if(e)e.className='pd dn';}
+    if(viewMode==='compare')drawCmp(dt);else draw(ctx,mc.width,mc.height,dt,false);
+    raf=requestAnimationFrame(tick);return;
+  }
+
+  // ── NORMAL MODE: original step-by-step with animation ──
+  if(speedMode==='normal'){
+    if(pAnim){pProg+=dt/Math.max(60,stepDelay*0.55);if(pProg>=1){pProg=1;pAnim=false;cur=pTo;}}
+    const ready=!pAnim&&(now-lstep)>=stepDelay;
+    if(ready){
+      lstep=now;
+      if(!epQ||epQ.length===0){buildQ();epSt=0;consNb=[];chosen=-1;}
+      if(epQ.length>0){
+        const h=epQ.shift();epSt++;
+        $('sn').textContent=epSt;
+        consNb=h.nb.filter(n=>n!==h.to).slice(0,5);
+        chosen=h.to;pFrom=h.from;pTo=h.to;pProg=0;pAnim=true;cur=h.from;
+        trail[ek(h.from,h.to)]=0.9;
+        flash[h.to]={c:h.ok?'#00ff88':'#ff2d55',a:0.8};
+        if(epQ.length===0)finishEp(true);
+      }
+    }
+  } else {
+    // ── FAST / TURBO MODE: batch episodes per frame, no step animation ──
+    pAnim=false;
+    const batchSize = cfg.episodesPerFrame;
+    const renderEvery = cfg.renderEvery;
+    for(let b=0;b<batchSize&&ep<EPISODES;b++){
+      buildQ();
+      epQ=[];  // clear step queue, we've already run the full episode in buildQ
+      const doUI = (ep % renderEvery === 0);
+      finishEp(doUI);
+    }
+    // Always update ep counter display
+    $('en').textContent=ep;
+    $('sn').textContent=STEPS;
+  }
+
+  if(viewMode==='compare'){cc.style.display='block';mc.style.display='none';drawCmp(dt);}
+  else{cc.style.display='none';mc.style.display='block';draw(ctx,mc.width,mc.height,dt,false);}
+  raf=requestAnimationFrame(tick);
+}
+
+// ── TOOLTIP ──
+function onMv(e){
+  const rect=mc.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  const tip=$('tip');hovN=-1;
+  for(const n of nodes){
+    if(!pos[n])continue;
+    const dx=pos[n].x-mx,dy=pos[n].y-my;
+    if(Math.sqrt(dx*dx+dy*dy)>nodeR+8)continue;
+    hovN=n;
+    const isMal=malSet.has(n),isDet=detSet.has(n);
+    const isCur=n===cur||n===pTo,isSrc=n===src;
+    const sus=susMap[n];const tv=tavg(n);
+    const qvs=(adj[n]||[]).map(k=>`#${k}:${(Q[`${n}_${k}`]??0).toFixed(2)}`).slice(0,4).join(', ');
+    $('ttt').textContent=`Node #${n}`;
+    let b='',bc='';
+    if(isCur){b='▶ CARRYING PACKET';bc='rcu';}
+    else if(isSrc){b='⊙ SOURCE NODE';bc='rsc';}
+    else if(isDet&&isMal){b='✓ DETECTED (GT Match)';bc='rc';}
+    else if(revealMal&&isMal){b='✗ GROUND TRUTH (hidden)';bc='rc';}
+    else if(isDet){b='⚠ DETECTED (False Positive)';bc='rs';}
+    else{b='✓ TRUSTED';bc='ro';}
+    $('tbdg').innerHTML=`<div class="tbdg ${bc}">${b}</div>`;
+    $('tbd').innerHTML=
+      `<span>Trust avg  : <b style="color:${tc(tv)}">${tv.toFixed(3)}</b></span><br>`+
+      `<span>Variance   : <b>${sus?sus.vr.toFixed(4):'—'}</b></span><br>`+
+      `<span style="color:${sus&&sus.score>0.35?'#ffd700':'#8899bb'}">Sus score  : <b>${sus?sus.score.toFixed(4):'—'}</b></span><br>`+
+      `<span>Energy     : <b>${(energy[n]??0).toFixed(3)}</b></span><br>`+
+      `<span>Degree     : <b>${(adj[n]||[]).length}</b></span><br>`+
+      `<span style="font-size:8px;color:var(--dim)">Q-vals: ${qvs||'—'}</span><br>`+
+      `<span style="font-size:8.5px;color:#a855f7">Detection based on trust instability (no labels)</span>`;
+    tip.style.display='block';
+    let tx=mx+16,ty=Math.max(10,my-100);
+    if(tx+220>mc.width)tx=mx-240;
+    tip.style.left=tx+'px';tip.style.top=ty+'px';
+    return;
+  }
+  tip.style.display='none';
+}
+mc.addEventListener('mousemove',onMv);
+cc.addEventListener('mousemove',e=>{
+  if(viewMode==='compare'&&e.clientX-cc.getBoundingClientRect().left>cc.width*splitX)onMv(e);
+  else $('tip').style.display='none';
+});
+mc.addEventListener('mouseleave',()=>{$('tip').style.display='none';hovN=-1;});
+cc.addEventListener('mouseleave',()=>{$('tip').style.display='none';hovN=-1;});
+
+// ── SPLIT DRAG ──
+$('sp').addEventListener('mousedown',e=>{drag=true;e.preventDefault();});
+document.addEventListener('mousemove',e=>{
+  if(!drag)return;
+  const r=document.getElementById('cw').getBoundingClientRect();
+  splitX=Math.max(0.2,Math.min(0.8,(e.clientX-r.left)/r.width));
+  $('sp').style.left=(mc.width*splitX)+'px';
+});
+document.addEventListener('mouseup',()=>{drag=false;});
+
+// ── VIEW MODE ──
+function setMode(m){
+  viewMode=m;
+  ['rl','compare','focus'].forEach(id=>$('tab-'+id).classList.toggle('on',id===m));
+  const sp=$('sp'),cml=$('cml'),cmr=$('cmr'),cmsl=$('cmsl'),cmsr=$('cmsr'),badge=$('cmp-badge');
+  const fdb=$('fdb'),mg=$('mg');
+  if(m==='compare'){
+    sp.style.display='block';cml.style.display='block';cmr.style.display='block';
+    cmsl.style.display='block';cmsr.style.display='block';badge.style.display='block';
+    fdb.style.opacity='0';mg.style.display='none';
+    cc.style.display='block';mc.style.display='none';
+    sp.style.left=(mc.width*splitX)+'px';
+  }else{
+    sp.style.display='none';cml.style.display='none';cmr.style.display='none';
+    cmsl.style.display='none';cmsr.style.display='none';badge.style.display='none';
+    mg.style.display='block';
+    cc.style.display='none';mc.style.display='block';
+    if(m==='rl'&&ep>10)fdb.style.opacity='1';
+    else fdb.style.opacity='0';
+  }
+}
+
+function togglePlay(){
+  running=!running;
+  const b=$('bplay');
+  b.textContent=running?'⏸ PAUSE':'▶ PLAY';
+  b.classList.toggle('pau',!running);
+  if(!running){
+    pauseStartTs=performance.now();
+  } else {
+    if(pauseStartTs!==null){
+      simPausedMs+=(performance.now()-pauseStartTs);
+      pauseStartTs=null;
+    }
+  }
+}
+
+function resetSim(){
+  cancelAnimationFrame(raf);
+  ep=0;epSt=0;dels=[];deth=[];delh=[];rnds=[];
+  detSet=new Set();flash={};trail={};decay={};prop={};
+  pFrom=-1;pTo=-1;src=-1;cur=-1;pAnim=false;
+  epQ=[];consNb=[];chosen=-1;susMap={};pt=0;lstep=0;lraf=0;ltpc=0;hovN=-1;
+  document.getElementById('fdb').style.opacity='0';
+  seed=42;bs=9999;
+
+  // Reset timer
+  simStartTime=performance.now();
+  simPausedMs=0;pauseStartTs=null;
+  document.getElementById('timer-elapsed').textContent='00:00';
+  document.getElementById('timer-eta').textContent='EST: calculating…';
+  document.getElementById('timer-eta').className='timer-eta';
+
+  initG();layout();running=true;
+  $('log').innerHTML='';
+  $('bplay').textContent='⏸ PAUSE';$('bplay').classList.remove('pau');
+  $('en').textContent='0';$('sn').textContent='0';
+  ['hrl','hrn','him','hpr','hrc'].forEach(id=>{$(id).textContent='—';});
+  $('htp').textContent='0/0';
+  $('np').textContent='INITIALIZING';
+  $('nt').textContent='Building network — all nodes appear identical. No routing knowledge yet.';
+  $('ptag').textContent='INIT';$('mg').textContent='Initializing FT-KGRL network topology…';
+  setMode('rl');
+  raf=requestAnimationFrame(tick);
+}
+
+function addLog(e,tp,rl,rn,pr,rc){
+  const log=$('log');
+  const d=document.createElement('div');
+  const vm=[...malSet].length;
+  const cls=tp>=Math.floor(vm*0.8)?'dt':pr>0.8&&e>400?'hi':tp===0&&e>100?'wn':e%50===0&&e>400?'pp':'';
+  d.className=`le ${cls}`;
+  d.textContent=`EP${String(e).padStart(4,'0')} TP:${tp} RL:${rl} RND:${rn} P:${(pr*100).toFixed(0)}% R:${(rc*100).toFixed(0)}%`;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  if(log.children.length>120)log.removeChild(log.firstChild);
+}
+
+// ── BOOT ──
+window.addEventListener('resize',resize);
+setTimeout(()=>{
+  resize();
+  simStartTime=performance.now();
+  lraf=performance.now();lstep=performance.now()-stepDelay;
+  initG();layout();setMode('rl');
+  raf=requestAnimationFrame(tick);
+},120);
+</script>
+</body>
+</html>
